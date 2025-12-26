@@ -3,11 +3,12 @@ pipeline {
 
     environment {
         FLASK_EC2 = "ubuntu@13.233.146.57"
-        APP_DIR = "/home/ubuntu/flask-app"
-        SSH_KEY = "/var/lib/jenkins/.ssh/id_ed25519"
+        APP_DIR  = "/home/ubuntu/flask-app"
+        SSH_KEY  = "/var/lib/jenkins/.ssh/id_ed25519"
     }
 
     stages {
+
         stage('Checkout Source') {
             steps {
                 echo "=== Checking out source code ==="
@@ -44,34 +45,35 @@ EOF
             steps {
                 echo "=== Deploying to Flask EC2 ==="
                 sh '''
-                # Create the target directory on the EC2 machine
-                ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${FLASK_EC2} "mkdir -p ${APP_DIR}"
+                # Create application directory on slave EC2
+                ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${FLASK_EC2} \
+                "mkdir -p ${APP_DIR}"
 
-                # Copy application files and templates directory recursively
+                # Copy application files to slave EC2
                 scp -r -i ${SSH_KEY} -o StrictHostKeyChecking=no \
-                    app.py requirements.txt templates \
-                    ${FLASK_EC2}:${APP_DIR}/
+                app.py requirements.txt templates \
+                ${FLASK_EC2}:${APP_DIR}/
 
-                # SSH and start the app on EC2
+                # SSH into slave EC2 and start Flask app
                 ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${FLASK_EC2} "
-                  cd ${APP_DIR} &&
+                    cd ${APP_DIR} &&
 
-                  # Create python venv if it is missing
-                  if [ ! -d venv ]; then
-                    python3 -m venv venv
-                  fi &&
+                    # Create virtual environment if not exists
+                    if [ ! -d venv ]; then
+                        python3 -m venv venv
+                    fi &&
 
-                  # Activate and install requirements
-                  . venv/bin/activate &&
-                  pip install --upgrade pip &&
-                  pip install -r requirements.txt &&
+                    # Activate venv and install dependencies
+                    . venv/bin/activate &&
+                    pip install --upgrade pip &&
+                    pip install -r requirements.txt &&
 
-                  # Stop any existing Flask app
-                  pkill -f 'venv/bin/python app.py' || true &&
+                    # Stop old Flask app if running
+                    pkill -f 'venv/bin/python app.py' || true &&
 
-                  # Start Flask in the background and log output
-                  nohup venv/bin/python app.py > flask.log 2>&1 &
-				  disown
+                    # Start Flask app in background using nohup
+                    nohup venv/bin/python app.py > flask.log 2>&1 &
+                    disown
                 "
                 '''
             }
@@ -79,14 +81,15 @@ EOF
     }
 
     post {
-        always {
-            echo "=== Pipeline finished ==="
-        }
         success {
-            echo "=== Deployment succeeded! Visit http://${FLASK_EC2.split('@')[1]}:5000 ==="
+            echo "=== Deployment successful! ==="
+            echo "Visit: http://13.233.146.57:5000"
         }
         failure {
-            echo "=== Deployment failed — check logs! ==="
+            echo "=== Deployment failed — check Jenkins logs ==="
+        }
+        always {
+            echo "=== Pipeline finished ==="
         }
     }
 }
