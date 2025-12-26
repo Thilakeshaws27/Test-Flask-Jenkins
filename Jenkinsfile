@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        FLASK_EC2 = "ubuntu@13.233.121.238"
+        FLASK_EC2 = "ubuntu@13.233.146.57"
         APP_DIR = "/home/ubuntu/flask-app"
         SSH_KEY = "/var/lib/jenkins/.ssh/id_ed25519"
     }
